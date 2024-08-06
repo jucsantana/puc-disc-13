@@ -1,18 +1,16 @@
 package med.voll.api.domain.consulta.validadores.medico;
 
-import med.voll.api.BaseTestDataBase;
 import med.voll.api.domain.ValidacaoException;
 import med.voll.api.domain.consulta.DadosAgendamentoConsulta;
-import med.voll.api.domain.consulta.validadores.ValidadorAgendamentoDeConsulta;
 import med.voll.api.domain.medico.Especialidade;
+import med.voll.api.domain.medico.MedicoRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.BDDMockito;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -22,15 +20,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class ValidaSeMedicoInativoTest extends BaseTestDataBase {
+@ExtendWith(SpringExtension.class)
+class ValidaSeMedicoInativoTest{
 
-    @Autowired
-    ValidaSeMedicoInativo validador;
+    @InjectMocks
+    private ValidaSeMedicoInativo validador;
+
+    @Mock
+    private MedicoRepository repository;
 
     @Test
-    @Transactional
     @DisplayName("Deve devolver uma excecao devido a nao existir medico disponivel para consulta na especialidade!")
     void cenario_1(){
 
@@ -43,6 +42,8 @@ class ValidaSeMedicoInativoTest extends BaseTestDataBase {
         when(dadosAgendamentoConsulta.data()).thenReturn(proximaSegundaAs10);
         when(dadosAgendamentoConsulta.especialidade()).thenReturn(Especialidade.CARDIOLOGIA);
 
+        BDDMockito.given(repository.escolherMedicoAleatorioLivreNaData(dadosAgendamentoConsulta.especialidade(), dadosAgendamentoConsulta.data())).willReturn(null);
+
         ValidacaoException validacaoException = assertThrows(ValidacaoException.class, () -> {
             validador.validar(dadosAgendamentoConsulta);
         });
@@ -52,17 +53,13 @@ class ValidaSeMedicoInativoTest extends BaseTestDataBase {
     }
 
     @Test
-    @Transactional
     @DisplayName("Deve devolver uma excecao devido ao medico informado nao existir!")
     void cenario_2(){
 
-        var proximaSegundaAs10 = LocalDate.now()
-                .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
-                .atTime(10,0);
-
         var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
-        when(dadosAgendamentoConsulta.data()).thenReturn(proximaSegundaAs10);
         when(dadosAgendamentoConsulta.idMedico()).thenReturn(100L);
+
+        BDDMockito.given(repository.findByIdAndAtivoTrue(dadosAgendamentoConsulta.idMedico())).willReturn(null);
 
         ValidacaoException validacaoException = assertThrows(ValidacaoException.class, () -> {
             validador.validar(dadosAgendamentoConsulta);

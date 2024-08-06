@@ -2,12 +2,19 @@ package med.voll.api.domain.consulta.validadores.paciente;
 
 import med.voll.api.BaseTestDataBase;
 import med.voll.api.domain.ValidacaoException;
+import med.voll.api.domain.consulta.ConsultaRepository;
 import med.voll.api.domain.consulta.DadosAgendamentoConsulta;
 import med.voll.api.domain.medico.Especialidade;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.BDDMockito;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.internal.matchers.Any;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
@@ -18,28 +25,36 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
-class ValidaPacienteSemOutraConsultaNoDiaTest extends BaseTestDataBase {
+@ExtendWith(SpringExtension.class)
+class ValidaPacienteSemOutraConsultaNoDiaTest {
 
-    @Autowired
+    @InjectMocks
     ValidaPacienteSemOutraConsultaNoDia validador;
 
+    @Mock
+    private ConsultaRepository repository;
+
+
     @Test
-    @Transactional
     @DisplayName("Deve devolver uma excecao devido ao paciente já possuir consulta dia")
     void cenario_1(){
+
+        final int HORARIO_ABERTURA_CLINICA=7;
+        final int HORARIO_FECHAMENTO_CLINICA=18;
 
         var proximaSegundaAs10 = LocalDate.now()
                 .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
                 .atTime(10,0);
 
-        var medico = cadastrarMedico("Fulano", "fulando@voll.med", "123456", Especialidade.CARDIOLOGIA);
-        var paciente = cadastrarPaciente("ciclano","ciclano@globo.com", "12345678910");
-        cadastrarConsulta(medico, paciente, proximaSegundaAs10);
 
         var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
         when(dadosAgendamentoConsulta.data()).thenReturn(proximaSegundaAs10);
-        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(paciente.getId());
+        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(1L);
+
+        var primeiroHorario = dadosAgendamentoConsulta.data().withHour(HORARIO_ABERTURA_CLINICA);
+        var ultimoHorario = dadosAgendamentoConsulta.data().withHour(HORARIO_FECHAMENTO_CLINICA);
+
+        BDDMockito.given(repository.existsByPacienteIdAndDataBetween(dadosAgendamentoConsulta.idPaciente(),primeiroHorario,ultimoHorario)).willReturn(Boolean.TRUE);
 
         ValidacaoException validacaoException = assertThrows(ValidacaoException.class, () -> {
             validador.validar(dadosAgendamentoConsulta);
@@ -49,50 +64,27 @@ class ValidaPacienteSemOutraConsultaNoDiaTest extends BaseTestDataBase {
     }
 
     @Test
-    @Transactional
     @DisplayName("Deve permitir cadastrar o paciente na consulta no horário")
     void cenario_2(){
+        final int HORARIO_ABERTURA_CLINICA=7;
+        final int HORARIO_FECHAMENTO_CLINICA=18;
 
         var proximaSegundaAs10 = LocalDate.now()
                 .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
                 .atTime(10,0);
 
-        cadastrarMedico("Fulano", "fulando@voll.med", "123456", Especialidade.CARDIOLOGIA);
-        var paciente = cadastrarPaciente("ciclano","ciclano@globo.com", "12345678910");
 
         var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
         when(dadosAgendamentoConsulta.data()).thenReturn(proximaSegundaAs10);
-        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(paciente.getId());
+        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(1L);
+
+        var primeiroHorario = dadosAgendamentoConsulta.data().withHour(HORARIO_ABERTURA_CLINICA);
+        var ultimoHorario = dadosAgendamentoConsulta.data().withHour(HORARIO_FECHAMENTO_CLINICA);
+
+        BDDMockito.given(repository.existsByPacienteIdAndDataBetween(dadosAgendamentoConsulta.idPaciente(),primeiroHorario,ultimoHorario)).willReturn(Boolean.FALSE);
+
 
         assertDoesNotThrow(() -> validador.validar(dadosAgendamentoConsulta));
     }
-
-    @Test
-    @Transactional
-    @DisplayName("Deve permitir cadastrar paciente, com consulta futura agenda")
-    void cenario_3(){
-
-        var segundaAs10DaquiaDoisMeses = LocalDate.now().plusMonths(2)
-                .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
-                .atTime(10,0);
-
-        var proximaSegundaAs10 = LocalDate.now()
-                .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
-                .atTime(10,0);
-
-        var medico = cadastrarMedico("Fulano", "fulando@voll.med", "123456", Especialidade.CARDIOLOGIA);
-        var paciente = cadastrarPaciente("ciclano","ciclano@globo.com", "12345678910");
-        cadastrarConsulta(medico, paciente, segundaAs10DaquiaDoisMeses);
-
-        var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
-        when(dadosAgendamentoConsulta.data()).thenReturn(proximaSegundaAs10);
-        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(paciente.getId());
-
-        assertDoesNotThrow(() -> {validador.validar(dadosAgendamentoConsulta);});
-    }
-
-
-
-
 
 }

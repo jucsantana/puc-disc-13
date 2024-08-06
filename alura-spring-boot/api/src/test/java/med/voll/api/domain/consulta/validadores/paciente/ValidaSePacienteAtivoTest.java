@@ -1,37 +1,38 @@
 package med.voll.api.domain.consulta.validadores.paciente;
 
-import med.voll.api.BaseTestDataBase;
 import med.voll.api.domain.ValidacaoException;
 import med.voll.api.domain.consulta.DadosAgendamentoConsulta;
+import med.voll.api.domain.paciente.Paciente;
 import med.voll.api.domain.paciente.PacienteRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.BDDMockito;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
-class ValidaSePacienteAtivoTest extends BaseTestDataBase {
+@ExtendWith(SpringExtension.class)
+class ValidaSePacienteAtivoTest{
 
-    @Autowired
+    @InjectMocks
     ValidaSePacienteAtivo validador;
 
+    @Mock
+    PacienteRepository repository;
 
     @Test
-    @Transactional
     @DisplayName("Deve devolver uma excecao devido ao paciente ter sido excluido")
     void cenario_1(){
-        var paciente = cadastrarPaciente("ciclano","ciclano@globo.com", "12345678910");
-        paciente.excluir();
 
         var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
-        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(paciente.getId());
+        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(1L);
+
+        BDDMockito.given(repository.findByIdAndAtivoTrue(dadosAgendamentoConsulta.idPaciente())).willReturn(null);
 
         ValidacaoException validacaoException = assertThrows(ValidacaoException.class, () -> {
             validador.validar(dadosAgendamentoConsulta);
@@ -41,14 +42,16 @@ class ValidaSePacienteAtivoTest extends BaseTestDataBase {
     }
 
     @Test
-    @Transactional
     @DisplayName("Deve permitir usar o cadastro do paciente ativo")
     void cenario_2(){
 
-        var paciente = cadastrarPaciente("ciclano","ciclano@globo.com", "12345678910");
+        var paciente = mock(Paciente.class);
+        when(paciente.getId()).thenReturn(1L);
 
         var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
-        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(paciente.getId());
+        when(dadosAgendamentoConsulta.idPaciente()).thenReturn(1L);
+
+        BDDMockito.given(repository.findByIdAndAtivoTrue(dadosAgendamentoConsulta.idPaciente())).willReturn(paciente);
 
         assertDoesNotThrow(()-> validador.validar(dadosAgendamentoConsulta));
 
