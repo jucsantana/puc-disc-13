@@ -1,19 +1,15 @@
 package med.voll.api.domain.consulta.validadores.medico;
 
-import med.voll.api.BaseTestDataBase;
 import med.voll.api.domain.ValidacaoException;
+import med.voll.api.domain.consulta.ConsultaRepository;
 import med.voll.api.domain.consulta.DadosAgendamentoConsulta;
-import med.voll.api.domain.consulta.validadores.ValidadorAgendamentoDeConsulta;
-import med.voll.api.domain.medico.Especialidade;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.BDDMockito;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -23,15 +19,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class ValidaConsultaConcorrenteTest extends BaseTestDataBase {
+@ExtendWith(SpringExtension.class)
+class ValidaConsultaConcorrenteTest{
 
-    @Autowired
+    @InjectMocks
     ValidaConsultaConcorrente validador;
 
+    @Mock
+    private ConsultaRepository repository;
+
     @Test
-    @Transactional
     @DisplayName("Deve devolver uma excecao devido ao médico já possuir consulta no horário")
     void cenario_1(){
 
@@ -39,13 +36,11 @@ class ValidaConsultaConcorrenteTest extends BaseTestDataBase {
                 .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
                 .atTime(10,0);
 
-        var medico = cadastrarMedico("Fulano", "fulando@voll.med", "123456", Especialidade.CARDIOLOGIA);
-        var paciente = cadastrarPaciente("ciclano","ciclano@globo.com", "12345678910");
-        cadastrarConsulta(medico, paciente, proximaSegundaAs10);
-
         var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
         when(dadosAgendamentoConsulta.data()).thenReturn(proximaSegundaAs10);
-        when(dadosAgendamentoConsulta.idMedico()).thenReturn(medico.getId());
+        when(dadosAgendamentoConsulta.idMedico()).thenReturn(1L);
+
+        BDDMockito.given(repository.existsByMedicoIdAndData(dadosAgendamentoConsulta.idMedico(), proximaSegundaAs10)).willReturn(Boolean.TRUE);
 
         ValidacaoException validacaoException = assertThrows(ValidacaoException.class, () -> {
             validador.validar(dadosAgendamentoConsulta);
@@ -55,7 +50,6 @@ class ValidaConsultaConcorrenteTest extends BaseTestDataBase {
     }
 
     @Test
-    @Transactional
     @DisplayName("Deve permitir cadastrar o médico na consulta no horário")
     void cenario_2(){
 
@@ -63,11 +57,11 @@ class ValidaConsultaConcorrenteTest extends BaseTestDataBase {
                 .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
                 .atTime(10,0);
 
-        var medico = cadastrarMedico("Fulano", "fulando@voll.med", "123456", Especialidade.CARDIOLOGIA);
-
         var dadosAgendamentoConsulta = mock(DadosAgendamentoConsulta.class);
         when(dadosAgendamentoConsulta.data()).thenReturn(proximaSegundaAs10);
-        when(dadosAgendamentoConsulta.idMedico()).thenReturn(medico.getId());
+        when(dadosAgendamentoConsulta.idMedico()).thenReturn(1L);
+
+        BDDMockito.given(repository.existsByMedicoIdAndData(dadosAgendamentoConsulta.idMedico(), proximaSegundaAs10)).willReturn(Boolean.FALSE);
 
         assertDoesNotThrow(() -> {validador.validar(dadosAgendamentoConsulta);});
     }
